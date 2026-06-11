@@ -71,7 +71,7 @@ Any platform that speaks MCP connects directly:
 | Temporal scoring  | —       | Yes         | Yes                 |
 | Shared namespaces | —       | —           | Yes                 |
 
-30-day Pro trial included with every install. Get a key at [keystoneproject.dev](https://keystoneproject.dev).
+Get a key at [keystoneproject.dev](https://keystoneproject.dev).
 
 ## Data ownership
 
