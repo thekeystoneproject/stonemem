@@ -79,7 +79,7 @@ Your data stays on your machine, in open SQLite databases you own. No cloud depe
 
 ## Documentation
 
-Full documentation at [keystoneproject.dev/docs/stonemem](https://keystoneproject.dev/docs/stonemem/).
+Full documentation at [keystoneproject.dev/docs](https://keystoneproject.dev/docs/).
 
 ## Stone Suite
 
