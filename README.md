@@ -1,10 +1,12 @@
 # stonemem
 
-**Institutional memory engine for AI agents.**
+**Persistent memory for AI agents.**
 
-![Rust](https://img.shields.io/badge/Built_with-Rust-dea584?style=flat-square) ![MCP](https://img.shields.io/badge/MCP-compatible-blue?style=flat-square) ![Platforms](https://img.shields.io/badge/Adapters-7_platforms-green?style=flat-square) ![License](https://img.shields.io/badge/License-BSL_1.1-yellow?style=flat-square)
+![Rust](https://img.shields.io/badge/Built_with-Rust-dea584?style=flat-square) ![License](https://img.shields.io/badge/License-BSL_1.1-yellow?style=flat-square)
 
-stonemem gives any AI agent framework persistent, searchable, institutional memory. Save context, recall it later, deduplicate automatically, and build entity graphs across sessions. One binary, zero dependencies, works with every major agent platform.
+A compiled Rust server that gives AI agents persistent, searchable memory across sessions. Full-text search, deduplication, entity graphs, temporal scoring, and namespace isolation. Runs locally on port 3391, zero cloud dependencies.
+
+Works with **Hermes**, **CrewAI**, **LangGraph**, **Haystack**, **OpenHands**, **MS Agent Framework**, and **Google ADK** out of the box.
 
 ## Install
 
@@ -12,41 +14,73 @@ stonemem gives any AI agent framework persistent, searchable, institutional memo
 brew install thekeystoneproject/tap/stonemem
 ```
 
-Or download the binary from [Releases](https://github.com/thekeystoneproject/stonemem/releases).
+Or download from [Releases](https://github.com/thekeystoneproject/stonemem/releases).
 
 ## Quick Start
 
 ```bash
-# Start the server
 stonemem serve
-
-# Save a memory
-curl -X POST http://127.0.0.1:3391/save \
-  -H "Content-Type: application/json" \
-  -d '{"namespace": "default", "content": "The API uses JWT tokens with 24h TTL", "tags": ["auth", "api"]}'
-
-# Search memories
-curl "http://127.0.0.1:3391/search?q=JWT+tokens&namespace=default"
-
-# Check status
-curl http://127.0.0.1:3391/health
 ```
 
-## Adapters
+### With CrewAI
 
-MIT-licensed adapters for every major AI agent framework. Drop in and go.
+```python
+from stonemem_crewai import StonememCrewAIMemory
 
-| Platform | Directory | Description |
-|----------|-----------|-------------|
-| [Hermes](adapters/hermes/) | `adapters/hermes/` | Agent memory provider |
-| [CrewAI](adapters/crewai/) | `adapters/crewai/` | Crew memory backend |
-| [LangGraph](adapters/langgraph/) | `adapters/langgraph/` | State checkpointer |
-| [Haystack](adapters/haystack/) | `adapters/haystack/` | Document store |
-| [OpenHands](adapters/openhands/) | `adapters/openhands/` | Agent memory |
-| [MS Agent Framework](adapters/ms_agent/) | `adapters/ms_agent/` | Memory provider |
-| [Google ADK](adapters/google_adk/) | `adapters/google_adk/` | Memory service |
+crew = Crew(
+    agents=[...],
+    tasks=[...],
+    memory=StonememCrewAIMemory(),
+)
+```
 
-Each adapter is a thin Python shim (~150 LOC) that implements the platform's memory interface and routes all operations to the stonemem REST API.
+### With Hermes
+
+```python
+from stonemem_hermes import StonememProvider
+
+# Register as a memory provider — stonemem handles the full lifecycle:
+# initialization, prefetch, tool schemas, turn sync, pre-compression extraction
+ctx.register_memory_provider("stonemem", StonememProvider)
+```
+
+### With LangGraph
+
+```python
+from stonemem_langgraph import StonememCheckpointer
+
+graph = StateGraph(State)
+graph.compile(checkpointer=StonememCheckpointer())
+```
+
+## REST API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/save` | POST | Save a memory with namespace, tags, and optional supersession |
+| `/search` | POST | Full-text search with agent/namespace/tag filtering |
+| `/recall` | POST | Contextual recall — returns formatted markdown for prompt injection |
+| `/entity` | GET/POST | Entity graph queries and traversal |
+| `/agent/register` | POST | Register an agent with role and session |
+| `/agent/deregister` | POST | Deregister an agent |
+| `/stats` | GET | Memory statistics and namespace breakdown |
+| `/health` | GET | Server health check |
+
+## Framework Adapters
+
+Each adapter implements the framework's native memory interface and routes to stonemem's REST API. Not wrappers — full lifecycle integrations with tool schemas, auto-start, session management, and pre-compression hooks.
+
+| Framework | Adapter | What it implements |
+|-----------|---------|-------------------|
+| [Hermes](adapters/hermes/) | `StonememProvider` | Full `MemoryProvider` — tool schemas, prefetch, turn sync, delegation hooks, pre-compression extraction |
+| [CrewAI](adapters/crewai/) | `StonememCrewAIMemory` | `save`, `search`, `recall`, `get_context` — drop-in replacement for crew memory |
+| [LangGraph](adapters/langgraph/) | `StonememCheckpointer` | Graph state checkpointing with cross-session persistence |
+| [Haystack](adapters/haystack/) | `StonememDocumentStore` | Document store interface for pipeline memory |
+| [OpenHands](adapters/openhands/) | `StonememAgentMemory` | Agent memory with session isolation |
+| [MS Agent Framework](adapters/ms_agent/) | `StonememMemoryProvider` | Memory provider for MS agents |
+| [Google ADK](adapters/google_adk/) | `StonememMemoryService` | Memory service with ADK lifecycle hooks |
+
+All adapters are MIT licensed.
 
 ## Configuration
 
@@ -57,12 +91,12 @@ port = 3391
 data_dir = "~/.stonemem"
 ```
 
-Environment overrides: `STONEMEM_HOST`, `STONEMEM_PORT`, `STONEMEM_DATA_DIR`
+`STONEMEM_HOST`, `STONEMEM_PORT`, `STONEMEM_DATA_DIR` environment overrides.
 
 ## Pricing
 
-| Feature | Free | Pro ($9/mo) | Enterprise |
-|---------|------|-------------|------------|
+| | Free | Pro ($9/mo) | Enterprise |
+|---|------|-------------|------------|
 | Memory entries | 10,000 | Unlimited | Unlimited |
 | Namespaces | 1 | Unlimited | Unlimited |
 | Full-text search | Yes | Yes | Yes |
@@ -71,16 +105,22 @@ Environment overrides: `STONEMEM_HOST`, `STONEMEM_PORT`, `STONEMEM_DATA_DIR`
 | Temporal scoring | — | Yes | Yes |
 | Shared namespaces | — | — | Yes |
 
-Get a license key at [keystoneproject.dev](https://keystoneproject.dev).
+```bash
+stonemem activate SM-XXXX-XXXX-XXXX-XXXX
+```
 
-## Links
+Get a key at [keystoneproject.dev](https://keystoneproject.dev).
 
-- [keystoneproject.dev](https://keystoneproject.dev) — Product site and docs
-- [stonegate](https://github.com/thekeystoneproject/stonegate) — MCP tool gateway
-- [stonemux](https://github.com/thekeystoneproject/stonemux) — Multi-agent coordination
+## Stone Suite
+
+| Server | Purpose |
+|--------|---------|
+| **stonemem** | Persistent agent memory |
+| [stonemux](https://github.com/thekeystoneproject/stonemux) | Multi-agent coordination |
+| [stonegate](https://github.com/thekeystoneproject/stonegate) | MCP tool gateway |
 
 ## License
 
-The stonemem binary is licensed under [BSL 1.1](LICENSE). Adapters are [MIT licensed](adapters/LICENSE).
+Binary: [BSL 1.1](LICENSE). Adapters: [MIT](adapters/LICENSE).
 
-Built by [The Keystone Project](https://keystoneproject.dev).
+[The Keystone Project](https://keystoneproject.dev)
